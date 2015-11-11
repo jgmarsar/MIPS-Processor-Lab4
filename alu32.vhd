@@ -35,6 +35,7 @@ begin
 		o_temp <= (others => '0');
 		C <= '0';
 		V <= '0';
+		temp_sum := (others => '0');
 		case control is
 			when "0000" => --AND
 				o_temp <= ia and ib;

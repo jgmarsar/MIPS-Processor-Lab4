@@ -7,20 +7,17 @@ end MIPS_tb;
 
 architecture Test of MIPS_tb is
 	signal clk : std_logic := '1';
-	signal mclk : std_logic := '1';
 	signal rst : std_logic := '1';
 begin
 	
 	U_DATA : entity work.datapath
 		port map(
 			clk  => clk,
-			mclk => mclk,
 			rst  => rst,
             PCout => open
 		);
 	
 	clk <= not clk after 60 ns;
-	mclk <= not mclk after 20 ns;
 	
 	process
 	begin

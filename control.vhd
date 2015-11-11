@@ -1,6 +1,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.instNamePackage.all;
 
 entity control is
 	port (
@@ -18,7 +19,8 @@ entity control is
 		jtype : out std_logic;
 		jal : out std_logic;
 		BEQ : out std_logic;
-		BNE : out std_logic
+		BNE : out std_logic;
+		instName : out instruction_TYPE
 	);
 end entity control;
 
@@ -43,7 +45,7 @@ architecture BHV of control is
 	constant C_JIMM : std_logic := '0';
 	constant C_JREG : std_logic := '1';
 begin
-	process(opcode)
+	process(opcode, func)
 	begin
 		ALUop <= "000";
 		wr <= '0';
@@ -58,7 +60,7 @@ begin
 		jal <= '0';
 		BEQ <= '0';
 		BNE <= '0';
-		
+		instName <= NOP;
 		case opcode is
 			when "000000" =>			--R-type
 				ALUop <= "010";
@@ -70,27 +72,54 @@ begin
 					jump <= '1';
 					jtype <= C_JREG;
 					wr <= '0';
+					instName <= R_JR;
+				elsif (func = "100000") then
+					instName <= R_ADD;
+				elsif (func = "100001") then
+					instName <= R_ADDU;
+				elsif (func = "100100") then
+					instName <= R_AND;
+				elsif (func = "100111") then
+					instName <= R_NOR;
+				elsif (func = "100101") then
+					instName <= R_OR;
+				elsif (func = "101010") then
+					instName <= R_SLT;
+				elsif (func = "101011") then
+					instName <= R_SLTU;
+				elsif (func = "000000") then
+					instName <= R_SLL;
+				elsif (func = "000010") then
+					instName <= R_SRL;
+				elsif (func = "100010") then
+					instName <= R_SUB;
+				elsif (func = "100011") then
+					instName <= R_SUBU;
 				end if;
 			when "000010" =>			--J
 				jump <= '1';
 				jtype <= C_JIMM;
+				instName <= J_J;
 			when "000011" =>			--JAL
 				jump <= '1';
 				jtype <= C_JIMM;
 				jal <= '1';
 				wr <= '1';
+				instName <= J_JAL;
 			when "000100" =>			--BEQ
 				ALUop <= "001";
 				ALUSrc <= C_Q1;
 				ext_sel <= C_SIGN;
 				jump <= '0';
 				BEQ <= '1';
+				instName <= I_BEQ;
 			when "000101" =>			--BNE
 				ALUop <= "001";
 				ALUSrc <= C_Q1;
 				ext_sel <= C_SIGN;
 				jump <= '0';
 				BNE <= '1';
+				instName <= I_BNE;
 			when "001000" =>			--ADDI
 				ALUop <= "000";
 				wr <= '1';
@@ -98,6 +127,7 @@ begin
 				ALUSrc <= C_IMM;
 				regDst <= C_RT;
 				ext_sel <= C_SIGN;
+				instName <= I_ADDI;
 			when "001001" =>			--ADDIU
 				ALUop <= "000";
 				wr <= '1';
@@ -105,6 +135,7 @@ begin
 				ALUSrc <= C_IMM;
 				regDst <= C_RT;
 				ext_sel <= C_ZERO;
+				instName <= I_ADDIU;
 			when "001010" =>			--SLTI
 				ALUop <= "101";
 				wr <= '1';
@@ -112,6 +143,7 @@ begin
 				ALUSrc <= C_IMM;
 				regDst <= C_RT;
 				ext_sel <= C_SIGN;
+				instName <= I_SLTI;
 			when "001011" =>			--SLTIU
 				ALUop <= "110";
 				wr <= '1';
@@ -119,6 +151,7 @@ begin
 				ALUSrc <= C_IMM;
 				regDst <= C_RT;
 				ext_sel <= C_ZERO;
+				instName <= I_SLTIU;
 			when "001100" =>			--ANDI
 				ALUop <= "011";
 				wr <= '1';
@@ -126,6 +159,7 @@ begin
 				ALUSrc <= C_IMM;
 				regDst <= C_RT;
 				ext_sel <= C_ZERO;
+				instName <= I_ANDI;
 			when "001101" =>			--ORI
 				ALUop <= "100";
 				wr <= '1';
@@ -133,6 +167,7 @@ begin
 				ALUSrc <= C_IMM;
 				regDst <= C_RT;
 				ext_sel <= C_ZERO;
+				instName <= I_ORI;
 			when "001111" =>			--LUI
 				ALUop <= "111";
 				wr <= '1';
@@ -140,6 +175,7 @@ begin
 				ALUSrc <= C_IMM;
 				regDst <= C_RT;
 				ext_sel <= C_ZERO;
+				instName <= I_LUI;
 			when "100011" =>			--LW
 				ALUop <= "000";
 				wr <= '1';
@@ -148,6 +184,7 @@ begin
 				regDst <= C_RT;
 				ext_sel <= C_SIGN;
 				sizeSel <= C_WORD;
+				instName <= I_LW;
 			when "100100" =>			--LBU
 				ALUop <= "000";
 				wr <= '1';
@@ -156,6 +193,7 @@ begin
 				regDst <= C_RT;
 				ext_sel <= C_SIGN;
 				sizeSel <= C_BYTE;
+				instName <= I_LBU;
 			when "100101" =>			--LHU
 				ALUop <= "000";
 				wr <= '1';
@@ -164,24 +202,28 @@ begin
 				regDst <= C_RT;
 				ext_sel <= C_SIGN;
 				sizeSel <= C_HALF;
+				instName <= I_LHU;
 			when "101000" =>			--SB
 				ALUop <= "000";
 				ALUSrc <= C_IMM;
 				ext_sel <= C_SIGN;
 				MemWrite <= '1';
 				sizeSel <= C_BYTE;
+				instName <= I_SB;
 			when "101001" =>			--SH
 				ALUop <= "000";
 				ALUSrc <= C_IMM;
 				ext_sel <= C_SIGN;
 				MemWrite <= '1';
 				sizeSel <= C_HALF;
+				instName <= I_SH;
 			when "101011" =>			--SW
 				ALUop <= "000";
 				ALUSrc <= C_IMM;
 				ext_sel <= C_SIGN;
 				MemWrite <= '1';
 				sizeSel <= C_WORD;
+				instName <= I_SW;
 			when others => null;
 		end case;
 		

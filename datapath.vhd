@@ -1,11 +1,11 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.instnamepackage.all;
 
 entity datapath is
 	port (
 		clk : in std_logic;
-		mclk : in std_logic;
 		rst : in std_logic;
 		PCout : out std_logic_vector(31 downto 0)
 	);
@@ -14,48 +14,84 @@ end entity datapath;
 architecture STR of datapath is
 	--Program Counter signals
 	signal PC : std_logic_vector(31 downto 0);
-	signal PC4 : std_logic_vector(31 downto 0);
+	signal PC4_IF : std_logic_vector(31 downto 0);
+	signal PC4_ID : std_logic_vector(31 downto 0);
+	signal PC4_EX : std_logic_vector(31 downto 0);
+	signal PC4_MEM : std_logic_vector(31 downto 0);
+	signal PC4_WB : std_logic_vector(31 downto 0);
 	signal PC_next : std_logic_vector (31 downto 0);
 	signal jump_imm : std_logic_vector (31 downto 0);
 	signal jump_addr : std_logic_vector(31 downto 0);
 	signal PC_no_branch : std_logic_vector(31 downto 0);
 	signal PC_branch : std_logic_vector(31 downto 0);
 	signal offset : std_logic_vector(33 downto 0);
-	signal branch : std_logic;
+	signal branch_ID : std_logic;
+	signal branch_EX : std_logic;
 	
 	--instruction signals
-	signal instruction : std_logic_vector(31 downto 0);
-	signal ext_imm : std_logic_vector(31 downto 0);
+	signal instruction_IF : std_logic_vector(31 downto 0);
+	signal instruction_ID : std_logic_vector(31 downto 0);
+	signal ext_imm_ID : std_logic_vector(31 downto 0);
+	signal ext_imm_EX : std_logic_vector(31 downto 0);
+	signal func_EX : std_logic_vector(5 downto 0);
+	signal shamt_EX : std_logic_vector(4 downto 0);
 	
 	--control signals
-	signal ALUop : std_logic_vector(2 downto 0);
-	signal regWrite : std_logic;
-	signal ALUSrc : std_logic;
-	signal regDst : std_logic;
-	signal ext_sel : std_logic;
-	signal WriteDataSel : std_logic;
-	signal MemWrite : std_logic;
-	signal sizeSel : std_logic_vector(1 downto 0);
-	signal jump : std_logic;
-	signal jtype : std_logic;
-	signal jal : std_logic;
+	signal ALUop_ID : std_logic_vector(2 downto 0);
+	signal ALUop_EX : std_logic_vector(2 downto 0);
+	signal wr_ID : std_logic;
+	signal wr_EX : std_logic;
+	signal wr_MEM : std_logic;
+	signal wr_WB : std_logic;
+	signal ALUSrc_ID : std_logic;
+	signal ALUSrc_EX : std_logic;
+	signal regDst_ID : std_logic;
+	signal regDst_EX : std_logic;
+	signal regDst_MEM : std_logic;
+	signal regDst_WB : std_logic;
+	signal ext_sel_ID : std_logic;
+	signal WriteDataSel_ID : std_logic;
+	signal WriteDataSel_EX : std_logic;
+	signal WriteDataSel_MEM : std_logic;
+	signal WriteDataSel_WB : std_logic;
+	signal MemWrite_ID : std_logic;
+	signal MemWrite_EX : std_logic;
+	signal sizeSel_ID : std_logic_vector(1 downto 0);
+	signal sizeSel_EX : std_logic_vector(1 downto 0);
+	signal jump_ID : std_logic;
+	signal jump_EX : std_logic;
+	signal jtype_ID : std_logic;
+	signal jal_ID : std_logic;
+	signal jal_EX : std_logic;
+	signal jal_MEM : std_logic;
+	signal jal_WB : std_logic;
 	signal BEQ : std_logic;
 	signal BNE : std_logic;
+	signal flush : std_logic;
+	signal instName_ID : instruction_TYPE;
+	signal instName_EX : instruction_TYPE;
+	signal instName_MEM : instruction_TYPE;
+	signal instName_WB : instruction_TYPE;
 	
 	--register file signals
 	signal inst_rw : std_logic_vector(4 downto 0);
 	signal rw : std_logic_vector(4 downto 0);
-	signal q0 : std_logic_vector(31 downto 0);
-	signal q1 : std_logic_vector(31 downto 0);
+	signal q0_ID : std_logic_vector(31 downto 0);
+	signal q0_EX : std_logic_vector(31 downto 0);
+	signal q1_ID : std_logic_vector(31 downto 0);
+	signal q1_EX : std_logic_vector(31 downto 0);
 	signal WBData : std_logic_vector(31 downto 0);
 	signal regData : std_logic_vector(31 downto 0);
+	signal equal : std_logic;
 	
 	--ALU I/O signals
 	signal srcb : std_logic_vector(31 downto 0);
 	signal shdir : std_logic;
 	signal sh16 : std_logic;
 	signal ALUcont : std_logic_vector(3 downto 0);
-	signal ALUout : std_logic_vector(31 downto 0);
+	signal ALUout_EX : std_logic_vector(31 downto 0);
+	signal ALUout_MEM : std_logic_vector(31 downto 0);
+	signal ALUout_WB : std_logic_vector(31 downto 0);
 	signal C : std_logic;
 	signal V : std_logic;
 	signal S : std_logic;
@@ -63,9 +99,11 @@ architecture STR of datapath is
 	
 	--data memory signals
 	signal readData : std_logic_vector(31 downto 0);
-	signal byteEnable : std_logic_vector(3 downto 0);
+	signal byteEnable_EX : std_logic_vector(3 downto 0);
+	signal byteEnable_MEM : std_logic_vector(3 downto 0);
 	signal writeData : std_logic_vector(31 downto 0);
-	signal readDataAdj : std_logic_vector(31 downto 0);
+	signal readDataAdj_MEM : std_logic_vector(31 downto 0);
+	signal readDataAdj_WB : std_logic_vector(31 downto 0);
 	
 begin
 	--INSTRUCTION FETCH
@@ -83,11 +121,24 @@ begin
 		
 	U_INST_MEM : entity work.inst_mem
 		port map(
-			address => PC(9 downto 2),			--8-bit address; increments of 4 only, so ignore lowest 2 bits
-			clock   => mclk,
+			address => PC_next(9 downto 2),			--8-bit address; increments of 4 only, so ignore lowest 2 bits
+			clock   => clk,
 			data    => (others => '0'),
 			wren    => '0',
-			q       => instruction
+			q       => instruction_IF
+		);
+		
+	flush <= jump_ID or jump_EX or branch_ID or branch_EX;
+		
+	U_IF_ID_REG : entity work.IF_ID_reg
+		port map(
+			clk            => clk,
+			rst            => rst,
+			flush          => flush,
+			PC4_IF         => PC4_IF,
+			instruction_IF => instruction_IF,
+			PC4_ID         => PC4_ID,
+			instruction_ID => instruction_ID
 		);
 		
 	--PC Update
@@ -96,7 +147,7 @@ begin
 			in0  => PC,
 			in1  => x"00000004",
 			cin  => '0',
-			sum  => PC4,
+			sum  => PC4_IF,
 			cout => open,
 			V    => open
 		);
@@ -106,24 +157,24 @@ begin
 			widthIn => 26
 		)
 		port map(
-			input  => instruction(25 downto 0),
+			input  => instruction_ID(25 downto 0),
 			output => jump_imm(27 downto 0)
 		);
-	jump_imm(31 downto 28) <= PC4(31 downto 28);		--jump address includes top four bits of current PC
+	jump_imm(31 downto 28) <= PC4_ID(31 downto 28);		--jump address includes top four bits of current PC
 	
 	U_JUMP_MUX : entity work.mux32
 		port map(
-			in0 => PC4,
+			in0 => PC4_ID,
 			in1 => jump_addr,
-			Sel => jump,
+			Sel => jump_ID,
 			O   => PC_no_branch
 		);
 		
 	U_JTYPE_MUX : entity work.mux32
 		port map(
 			in0 => jump_imm,
-			in1 => ALUout,
-			Sel => jtype,
+			in1 => q0_ID,
+			Sel => jtype_ID,
 			O   => jump_addr
 		);
 		
@@ -132,7 +183,7 @@ begin
 			widthIn => 32
 		)
 		port map(
-			input  => ext_imm,
+			input  => ext_imm_ID,
 			output => offset
 		);
 		
@@ -150,37 +201,38 @@ begin
 		port map(
 			BEQ    => BEQ,
 			BNE    => BNE,
-			Z      => Z,
-			branch => branch
+			Z      => equal,
+			branch => branch_ID
 		);
 		
 	U_BRANCH_MUX : entity work.mux32
 		port map(
 			in0 => PC_no_branch,
 			in1 => PC_branch,
-			Sel => branch,
+			Sel => branch_ID,
 			O   => PC_next
 		);
-		
+			
+	
 	--INSTRUCTION DECODE
 	U_REGS : entity work.registerFile
 		port map(
-			rr0 => instruction(25 downto 21),	--source register
-			rr1 => instruction(20 downto 16),	--source register
+			rr0 => instruction_ID(25 downto 21),	--source register
+			rr1 => instruction_ID(20 downto 16),	--source register
 			rw  => rw,							--destination register from MUX
 			d   => regData,
 			clk => clk,
-			wr  => regWrite,
+			wr  => wr_WB,
 			rst => rst,
-			q0  => q0,
-			q1  => q1
+			q0  => q0_ID,
+			q1  => q1_ID
 		);
 		
 	U_REG_MUX1 : entity work.mux5		--select between rt and rd
 		port map(
-			in0 => instruction(20 downto 16),
-			in1 => instruction(15 downto 11),
-			Sel => regDst,
+			in0 => instruction_ID(20 downto 16),
+			in1 => instruction_ID(15 downto 11),
+			Sel => regDst_WB,
 			O   => inst_rw
 		);
 		
@@ -188,33 +240,41 @@ begin
 		port map(
 			in0 => inst_rw,
 			in1 => "11111",
-			Sel => jal,
+			Sel => jal_WB,
 			O   => rw
+		);
+		
+	U_REG_COMP : entity work.regCompare
+		port map(
+			q0    => q0_ID,
+			q1    => q1_ID,
+			equal => equal
 		);
 		
 	U_CONTROL : entity work.control
 		port map(
-			opcode => instruction(31 downto 26),
-			func => instruction(5 downto 0),
-			ALUop  => ALUop,
-			wr     => regWrite,
-			ALUSrc => ALUSrc,
-			regDst => regDst,
-			ext_sel => ext_sel,
-			WriteDataSel => WriteDataSel,
-			MemWrite => MemWrite,
-			sizeSel => sizeSel,
-			jump => jump,
-			jtype => jtype,
-			jal => jal,
+			opcode => instruction_ID(31 downto 26),
+			func => instruction_ID(5 downto 0),
+			ALUop  => ALUop_ID,
+			wr     => wr_ID,
+			ALUSrc => ALUSrc_ID,
+			regDst => regDst_ID,
+			ext_sel => ext_sel_ID,
+			WriteDataSel => WriteDataSel_ID,
+			MemWrite => MemWrite_ID,
+			sizeSel => sizeSel_ID,
+			jump => jump_ID,
+			jtype => jtype_ID,
+			jal => jal_ID,
 			BEQ => BEQ,
-			BNE => BNE
+			BNE => BNE,
+			instName => instName_ID
 		);
 		
 	U_ALU_CONT : entity work.alu32control
 		port map(
-			ALUop   => ALUop,
-			func    => instruction(5 downto 0),
+			ALUop   => ALUop_EX,
+			func    => func_EX,
 			control => ALUcont,
 			shdir   => shdir,
 			sh16	=> sh16
@@ -222,21 +282,61 @@ begin
 		
 	U_EXT : entity work.extender
 		port map(
-			in0  => instruction(15 downto 0),		--immediate
-			Sel => ext_sel,
-			out0 => ext_imm
+			in0  => instruction_ID(15 downto 0),		--immediate
+			Sel => ext_sel_ID,
+			out0 => ext_imm_ID
+		);
+		
+	U_ID_EX_REG : entity work.ID_EX_reg
+		port map(
+			clk             => clk,
+			rst             => rst,
+			ALUop_ID        => ALUop_ID,
+			wr_ID           => wr_ID,
+			ALUSrc_ID       => ALUSrc_ID,
+			regDst_ID       => regDst_ID,
+			WriteDataSel_ID => WriteDataSel_ID,
+			MemWrite_ID     => MemWrite_ID,
+			sizeSel_ID      => sizeSel_ID,
+			jal_ID          => jal_ID,
+			jump_ID         => jump_ID,
+			branch_ID       => branch_ID,
+			instName_ID     => instName_ID,
+			ALUop_EX        => ALUop_EX,
+			wr_EX           => wr_EX,
+			ALUSrc_EX       => ALUSrc_EX,
+			regDst_EX       => regDst_EX,
+			WriteDataSel_EX => WriteDataSel_EX,
+			MemWrite_EX     => MemWrite_EX,
+			sizeSel_EX      => sizeSel_EX,
+			jal_EX          => jal_EX,
+			jump_EX         => jump_EX,
+			branch_EX       => branch_EX,
+			instName_EX     => instName_EX,
+			q0_ID           => q0_ID,
+			q1_ID           => q1_ID,
+			ext_imm_ID      => ext_imm_ID,
+			func_ID         => instruction_ID(5 downto 0),
+			shamt_ID        => instruction_ID(10 downto 6),
+			PC4_ID          => PC4_ID,
+			q0_EX           => q0_EX,
+			q1_EX           => q1_EX,
+			ext_imm_EX      => ext_imm_EX,
+			func_EX         => func_EX,
+			shamt_EX        => shamt_EX,
+			PC4_EX          => PC4_EX
 		);
 		
 	--INSTRUCTION EXECUTE
 	U_ALU : entity work.alu32
 		port map(
-			ia      => q0,
+			ia      => q0_EX,
 			ib      => srcb,
 			control => ALUcont,
-			shamt   => instruction(10 downto 6),
+			shamt   => shamt_EX,
 			shdir   => shdir,
 			sh16	=> sh16,
-			o       => ALUout,
+			o       => ALUout_EX,
 			C       => C,
 			Z       => Z,
 			V       => V,
@@ -245,58 +345,102 @@ begin
 		
 	U_ALU_MUX : entity work.mux32
 		port map(
-			in0 => q1,
-			in1 => ext_imm,
-			Sel => ALUSrc,
+			in0 => q1_EX,
+			in1 => ext_imm_EX,
+			Sel => ALUSrc_EX,
 			O   => srcb
 		);
 	
 	U_BYTE_CONT : entity work.byte_control
 		port map(
-			sizeSel    => sizeSel,
-			byteSel    => ALUout(1 downto 0),
-			byteEnable => byteEnable
+			sizeSel    => sizeSel_EX,
+			byteSel    => ALUout_EX(1 downto 0),
+			byteEnable => byteEnable_EX
 		);
 		
 	U_BYTE_ADJ_WR : entity work.byte_adj_write
 		port map(
-			dataIn     => q1,
-			byteEnable => byteEnable,
+			dataIn     => q1_EX,
+			byteEnable => byteEnable_EX,
 			dataOut    => writeData
 		);
 		
-	--WRITE BACK
+	U_EX_MEM_REG : entity work.EX_MEM_reg
+		port map(
+			clk              => clk,
+			rst              => rst,
+			wr_EX            => wr_EX,
+			regDst_EX        => regDst_EX,
+			WriteDataSel_EX  => WriteDataSel_EX,
+			jal_EX           => jal_EX,
+			instName_EX      => instName_EX,
+			wr_MEM           => wr_MEM,
+			regDst_MEM       => regDst_MEM,
+			WriteDataSel_MEM => WriteDataSel_MEM,
+			jal_MEM          => jal_MEM,
+			instName_MEM     => instName_MEM,
+			ALUout_EX        => ALUout_EX,
+			byteEnable_EX    => byteEnable_EX,
+			PC4_EX           => PC4_EX,
+			ALUout_MEM       => ALUout_MEM,
+			byteEnable_MEM   => byteEnable_MEM,
+			PC4_MEM          => PC4_MEM
+		);
+		
+	--MEM/WRITE BACK
 	U_DATA_MEM : entity work.data_mem
 		port map(
-			address => ALUout(9 downto 2),		--word addressed; ignore 2 LSBs
-			byteena => byteEnable,
-			clock   => mclk,
+			address => ALUout_EX(9 downto 2),		--word addressed; ignore 2 LSBs
+			byteena => byteEnable_EX,
+			clock   => clk,
 			data    => writeData,
-			wren    => MemWrite,
+			wren    => MemWrite_EX,
 			q       => readData
 		);
 		
 	U_BYTE_ADJ_RD : entity work.byte_adj_read
 		port map(
 			dataIn     => readData,
-			byteEnable => byteEnable,
-			dataOut    => readDataAdj
+			byteEnable => byteEnable_MEM,
+			dataOut    => readDataAdj_MEM
 		);
 		
 	U_WB_MUX1 : entity work.mux32				--select between ALU and Memory data
 		port map(
-			in0 => ALUout,
-			in1 => readDataAdj,
-			Sel => WriteDataSel,
+			in0 => ALUout_WB,
+			in1 => readDataAdj_WB,
+			Sel => WriteDataSel_WB,
 			O   => WBData
 		);
 		
 	U_WB_MUX2 : entity work.mux32				--select between write back data and PC+4 (for jal instruction)
 		port map(
 			in0 => WBdata,
-			in1 => PC4,
-			Sel => jal,
+			in1 => PC4_WB,
+			Sel => jal_WB,
 			O   => regData
+		);
+		
+	U_MEM_WB_REG : entity work.MEM_WB_reg
+		port map(
+			clk              => clk,
+			rst              => rst,
+			wr_MEM           => wr_MEM,
+			regDst_MEM       => regDst_MEM,
+			WriteDataSel_MEM => WriteDataSel_MEM,
+			jal_MEM          => jal_MEM,
+			instName_MEM     => instName_MEM,
+			wr_WB            => wr_WB,
+			regDst_WB        => regDst_WB,
+			WriteDataSel_WB  => WriteDataSel_WB,
+			jal_WB           => jal_WB,
+			instName_WB      => instName_WB,
+			readDataAdj_MEM  => readDataAdj_MEM,
+			ALUout_MEM       => ALUout_MEM,
+			PC4_MEM          => PC4_MEM,
+			readDataAdj_WB   => readDataAdj_WB,
+			ALUout_WB        => ALUout_WB,
+			PC4_WB           => PC4_WB
 		);
 		
 	PCout <= PC;
