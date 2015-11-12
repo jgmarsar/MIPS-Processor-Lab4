@@ -17,11 +17,11 @@ begin
             PCout => open
 		);
 	
-	clk <= not clk after 60 ns;
+	clk <= not clk after 50 ns;
 	
 	process
 	begin
-		wait for 120 ns;
+		wait for 50 ns;
 		rst <= '0';
 		wait;
 	end process;

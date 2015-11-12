@@ -76,6 +76,7 @@ begin
 			when "1111" => --unsigned slt
 				in1 <= not ib;
 				cin <= '1';
+				temp_sum := sum;
 				if (Ctemp = '0' and (temp_sum /= x"00000000")) then
 					--if carry out is 0 and output is non-zero, a < b (for unsigned subtraction)
 					o_temp <= std_logic_vector(to_unsigned(1, 32));

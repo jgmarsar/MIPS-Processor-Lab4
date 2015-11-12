@@ -21,12 +21,17 @@ architecture RTL of IF_ID_reg is
 begin
 	process(clk, rst, flush)
 	begin
-		if (flush = '1' or rst = '1') then
+		if (rst = '1') then
 			PC4_ID <= (others => '0');
 			instruction_ID <= (others => '0');
 		elsif (rising_edge(clk)) then
-			PC4_ID <= PC4_IF;
-			instruction_ID <= instruction_IF;
+			if (flush = '1') then
+				PC4_ID <= (others => '0');
+				instruction_ID <= (others => '0');
+			else
+				PC4_ID <= PC4_IF;
+				instruction_ID <= instruction_IF;
+			end if;
 		end if;
 	end process;
 end RTL;

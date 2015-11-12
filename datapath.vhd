@@ -27,6 +27,8 @@ architecture STR of datapath is
 	signal offset : std_logic_vector(33 downto 0);
 	signal branch_ID : std_logic;
 	signal branch_EX : std_logic;
+	signal BorJ : std_logic;
+	signal PC_BorJ : std_logic_vector(31 downto 0);
 	
 	--instruction signals
 	signal instruction_IF : std_logic_vector(31 downto 0);
@@ -35,6 +37,12 @@ architecture STR of datapath is
 	signal ext_imm_EX : std_logic_vector(31 downto 0);
 	signal func_EX : std_logic_vector(5 downto 0);
 	signal shamt_EX : std_logic_vector(4 downto 0);
+	signal rt_EX : std_logic_vector(4 downto 0);
+	signal rt_MEM : std_logic_vector(4 downto 0);
+	signal rt_WB : std_logic_vector(4 downto 0);
+	signal rd_EX : std_logic_vector(4 downto 0);
+	signal rd_MEM : std_logic_vector(4 downto 0);
+	signal rd_WB : std_logic_vector(4 downto 0);
 	
 	--control signals
 	signal ALUop_ID : std_logic_vector(2 downto 0);
@@ -109,7 +117,7 @@ begin
 	--INSTRUCTION FETCH
 	U_PC : entity work.reg32
 		generic map(
-			reset => x"00400000"
+			reset => x"003FFFFC"			--Start address - 4; instruction mem starts at PC+4 = 0x400000
 		)
 		port map(
 			D   => PC_next,
@@ -128,7 +136,7 @@ begin
 			q       => instruction_IF
 		);
 		
-	flush <= jump_ID or jump_EX or branch_ID or branch_EX;
+	flush <= jump_ID or branch_ID ;
 		
 	U_IF_ID_REG : entity work.IF_ID_reg
 		port map(
@@ -161,14 +169,6 @@ begin
 			output => jump_imm(27 downto 0)
 		);
 	jump_imm(31 downto 28) <= PC4_ID(31 downto 28);		--jump address includes top four bits of current PC
-	
-	U_JUMP_MUX : entity work.mux32
-		port map(
-			in0 => PC4_ID,
-			in1 => jump_addr,
-			Sel => jump_ID,
-			O   => PC_no_branch
-		);
 		
 	U_JTYPE_MUX : entity work.mux32
 		port map(
@@ -189,7 +189,7 @@ begin
 		
 	U_BRANCH_ADD : entity work.add32
 		port map(
-			in0  => PC_no_branch,
+			in0  => PC4_ID,
 			in1  => offset(31 downto 0),
 			cin  => '0',
 			sum  => PC_branch,
@@ -207,9 +207,19 @@ begin
 		
 	U_BRANCH_MUX : entity work.mux32
 		port map(
-			in0 => PC_no_branch,
+			in0 => jump_addr,
 			in1 => PC_branch,
 			Sel => branch_ID,
+			O   => PC_BorJ
+		);
+		
+	BorJ <= branch_ID or jump_ID;
+		
+	U_PC_NEXT_MUX : entity work.mux32
+		port map(
+			in0 => PC4_IF,
+			in1 => PC_BorJ,
+			Sel => BorJ,
 			O   => PC_next
 		);
 			
@@ -230,8 +240,8 @@ begin
 		
 	U_REG_MUX1 : entity work.mux5		--select between rt and rd
 		port map(
-			in0 => instruction_ID(20 downto 16),
-			in1 => instruction_ID(15 downto 11),
+			in0 => rt_WB,
+			in1 => rd_WB,
 			Sel => regDst_WB,
 			O   => inst_rw
 		);
@@ -318,12 +328,16 @@ begin
 			ext_imm_ID      => ext_imm_ID,
 			func_ID         => instruction_ID(5 downto 0),
 			shamt_ID        => instruction_ID(10 downto 6),
+			rt_ID			=> instruction_ID(20 downto 16),
+			rd_ID			=> instruction_ID(15 downto 11),
 			PC4_ID          => PC4_ID,
 			q0_EX           => q0_EX,
 			q1_EX           => q1_EX,
 			ext_imm_EX      => ext_imm_EX,
 			func_EX         => func_EX,
 			shamt_EX        => shamt_EX,
+			rt_EX			=> rt_EX,
+			rd_EX			=> rd_EX,
 			PC4_EX          => PC4_EX
 		);
 		
@@ -382,9 +396,13 @@ begin
 			ALUout_EX        => ALUout_EX,
 			byteEnable_EX    => byteEnable_EX,
 			PC4_EX           => PC4_EX,
+			rt_EX			 => rt_EX,
+			rd_EX			 => rd_EX,
 			ALUout_MEM       => ALUout_MEM,
 			byteEnable_MEM   => byteEnable_MEM,
-			PC4_MEM          => PC4_MEM
+			PC4_MEM          => PC4_MEM,
+			rt_MEM			 => rt_MEM,
+			rd_MEM			 => rd_MEM
 		);
 		
 	--MEM/WRITE BACK
@@ -438,9 +456,13 @@ begin
 			readDataAdj_MEM  => readDataAdj_MEM,
 			ALUout_MEM       => ALUout_MEM,
 			PC4_MEM          => PC4_MEM,
+			rt_MEM			 => rt_MEM,
+			rd_MEM			 => rd_MEM,
 			readDataAdj_WB   => readDataAdj_WB,
 			ALUout_WB        => ALUout_WB,
-			PC4_WB           => PC4_WB
+			PC4_WB           => PC4_WB,
+			rt_WB			 => rt_WB,
+			rd_WB			 => rd_WB
 		);
 		
 	PCout <= PC;

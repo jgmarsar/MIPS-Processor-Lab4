@@ -25,10 +25,14 @@ entity MEM_WB_reg is
 		readDataAdj_MEM : in std_logic_vector(31 downto 0);
 		ALUout_MEM : in std_logic_vector(31 downto 0);
 		PC4_MEM : in std_logic_vector(31 downto 0);
+		rt_MEM : in std_logic_vector(4 downto 0);
+		rd_MEM : in std_logic_vector(4 downto 0);
 		
 		readDataAdj_WB : out std_logic_vector(31 downto 0);
 		ALUout_WB : out std_logic_vector(31 downto 0);
-		PC4_WB : out std_logic_vector(31 downto 0)
+		PC4_WB : out std_logic_vector(31 downto 0);
+		rt_WB : out std_logic_vector(4 downto 0);
+		rd_WB : out std_logic_vector(4 downto 0)
 	);
 end entity MEM_WB_reg;
 
@@ -45,6 +49,8 @@ begin
 			readDataAdj_WB <= (others => '0');
 			ALUout_WB <= (others => '0');
 			PC4_WB <= (others => '0');
+			rt_WB <= (others => '0');
+			rd_WB <= (others => '0');
 			instName_WB <= NOP;
 		elsif (rising_edge(clk)) then
 			wr_WB <= wr_MEM;
@@ -54,6 +60,8 @@ begin
 			readDataAdj_WB <= readDataAdj_MEM;
 			ALUout_WB <= ALUout_MEM;
 			PC4_WB <= PC4_MEM;
+			rt_WB <= rt_MEM;
+			rd_WB <= rd_MEM;
 			instName_WB <= instName_MEM;
 		end if;
 	end process;

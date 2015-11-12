@@ -25,10 +25,14 @@ entity EX_MEM_reg is
 		ALUout_EX : in std_logic_vector(31 downto 0);
 		byteEnable_EX : in std_logic_vector(3 downto 0);
 		PC4_EX : in std_logic_vector(31 downto 0);
+		rt_EX : in std_logic_vector(4 downto 0);
+		rd_EX : in std_logic_vector(4 downto 0);
 		
 		ALUout_MEM : out std_logic_vector(31 downto 0);
 		byteEnable_MEM : out std_logic_vector(3 downto 0);
-		PC4_MEM : out std_logic_vector(31 downto 0)
+		PC4_MEM : out std_logic_vector(31 downto 0);
+		rt_MEM : out std_logic_vector(4 downto 0);
+		rd_MEM : out std_logic_vector(4 downto 0)
 	);
 end entity EX_MEM_reg;
 
@@ -45,6 +49,8 @@ begin
 			ALUout_MEM <= (others => '0');
 			byteEnable_MEM <= (others => '0');
 			PC4_MEM <= (others => '0');
+			rt_MEM <= (others => '0');
+			rd_MEM <= (others => '0');
 			instName_MEM <= NOP;
 		elsif (rising_edge(clk)) then
 			wr_MEM <= wr_EX;
@@ -54,6 +60,8 @@ begin
 			ALUout_MEM <= ALUout_EX;
 			byteEnable_MEM <= byteEnable_EX;
 			PC4_MEM <= PC4_EX;
+			rt_MEM <= rt_EX;
+			rd_MEM <= rd_EX;
 			instName_MEM <= instName_EX;
 		end if;
 	end process;
