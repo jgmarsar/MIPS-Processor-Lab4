@@ -7,7 +7,7 @@ entity datapath is
 	port (
 		clk : in std_logic;
 		rst : in std_logic;
-		WBdataOut : out std_logic_vector(31 downto 0)
+		PCout : out std_logic_vector(31 downto 0)
 	);
 end entity datapath;
 
@@ -465,6 +465,6 @@ begin
 			rd_WB			 => rd_WB
 		);
 		
-	WBdataOut <= WBdata;
+	PCout <= PC;
 end architecture STR;
 

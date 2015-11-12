@@ -14,7 +14,7 @@ begin
 		port map(
 			clk  => clk,
 			rst  => rst,
-            WBdataOut => open
+            PCout => open
 		);
 	
 	clk <= not clk after 50 ns;
